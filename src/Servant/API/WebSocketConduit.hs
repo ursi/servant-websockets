@@ -113,7 +113,7 @@ instance (FromJSON i, WebSocketsData o) => SocketBracket 'BinaryMessage i o wher
 
 instance (AcceptsConnection msec, SocketBracket mt i o) => HasServer (WebSocketConduitRaw msec mt i o) ctx where
 
-  type ServerT (WebSocketConduitRaw msec mt i o) m = ConduitT i o (ResourceT IO) ()
+  type ServerT (WebSocketConduitRaw msec mt i o) m = Connection -> ConduitT i o (ResourceT IO) ()
 
 #if MIN_VERSION_servant_server(0,12,0)
   hoistServerWithContext _ _ _ svr = svr
@@ -136,7 +136,7 @@ instance (AcceptsConnection msec, SocketBracket mt i o) => HasServer (WebSocketC
         i <- newEmptyMVar
         race_ (forever $ receiveData c >>= putMVar i) .
           runConduitWebSocket c $ forever (yieldM . liftIO $ takeMVar i)
-            .| socketBracket @mt cond c
+            .| socketBracket @mt (cond c) c
 
 -- | Endpoint for defining a route to provide a websocket. In contrast
 -- to the 'WebSocketConduit', this endpoint only produces data. It can
@@ -161,7 +161,7 @@ data WebSocketSource o
 
 instance ToJSON o => HasServer (WebSocketSource o) ctx where
 
-  type ServerT (WebSocketSource o) m = ConduitT () o (ResourceT IO) ()
+  type ServerT (WebSocketSource o) m = Connection -> ConduitT () o (ResourceT IO) ()
 
 #if MIN_VERSION_servant_server(0,12,0)
   hoistServerWithContext _ _ _ svr = svr
@@ -181,7 +181,7 @@ instance ToJSON o => HasServer (WebSocketSource o) ctx where
 
     runWSApp cond = acceptRequest >=> \c -> handle (\(_ :: ConnectionException) -> return ()) $
       race_ (forever . void $ (receiveData c :: IO Text)) $
-        runConduitWebSocket c $ cond .| CL.mapM_ (liftIO . sendTextData c . encode)
+        runConduitWebSocket c $ (cond c) .| CL.mapM_ (liftIO . sendTextData c . encode)
 
 runConduitWebSocket :: (MonadBaseControl IO m, MonadUnliftIO m) => Connection -> ConduitT () Void (ResourceT m) () -> m ()
 runConduitWebSocket c a = withRunInIO $ \run -> withPingThread c 10 (pure ()) $ do

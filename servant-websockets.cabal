@@ -46,6 +46,7 @@ executable websocket-echo
                      , text
                      , wai
                      , warp
+                     , websockets
   default-language:    Haskell2010
 
 executable websocket-stream

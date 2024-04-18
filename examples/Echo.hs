@@ -14,6 +14,7 @@ import Data.Conduit             (ConduitT, yield)
 import Data.Text                (Text)
 import Network.Wai              (Application)
 import Network.Wai.Handler.Warp (run)
+import Network.WebSockets       (Connection)
 import Servant                  ((:<|>) (..), (:>), Proxy (..), Server, serve)
 
 import qualified Data.Conduit.List as CL
@@ -36,11 +37,11 @@ api = Proxy
 server :: Server API
 server = echo :<|> hello
 
-echo :: Monad m => ConduitT Value Value m ()
-echo = CL.map id
+echo :: Monad m => Connection -> ConduitT Value Value m ()
+echo _ = CL.map id
 
-hello :: MonadIO m => ConduitT () Text m ()
-hello = forever $ do
+hello :: MonadIO m => Connection -> ConduitT () Text m ()
+hello _ = forever $ do
   yield "hello world"
   liftIO $ threadDelay 1000000
 
